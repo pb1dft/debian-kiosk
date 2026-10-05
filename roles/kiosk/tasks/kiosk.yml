@@ -1,0 +1,74 @@
+---
+- name: Create getty override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/getty@tty1.service.d
+    state: directory
+    mode: "0755"
+
+- name: Configure kiosk autologin
+  ansible.builtin.template:
+    src: autologin.conf.j2
+    dest: /etc/systemd/system/getty@tty1.service.d/autologin.conf
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Configure kiosk bash profile
+  ansible.builtin.copy:
+    dest: "/home/{{ kiosk_user }}/.bash_profile"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0644"
+    content: |
+      # Managed by Ansible.
+
+      if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+          clear
+          exec startx >/home/{{ kiosk_user }}/xorg-start.log 2>&1
+      fi
+
+- name: Install X init file
+  ansible.builtin.template:
+    src: xinitrc.j2
+    dest: "/home/{{ kiosk_user }}/.xinitrc"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0755"
+
+- name: Install Openbox configuration
+  ansible.builtin.template:
+    src: kiosk.conf.j2
+    dest: "/home/{{ kiosk_user }}/.config/openbox/rc.xml"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0644"
+
+- name: Install Chromium launcher
+  ansible.builtin.template:
+    src: kiosk-browser.sh.j2
+    dest: "/home/{{ kiosk_user }}/bin/kiosk-browser.sh"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0755"
+
+- name: Install Openbox autostart
+  ansible.builtin.template:
+    src: openbox-autostart.sh.j2
+    dest: "/home/{{ kiosk_user }}/.config/openbox/autostart"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0755"
+
+- name: Install tab rotator
+  ansible.builtin.template:
+    src: kiosk-rotator.sh.j2
+    dest: "/home/{{ kiosk_user }}/bin/kiosk-rotator.sh"
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0755"
+
+- name: Enable tty1 getty
+  ansible.builtin.systemd:
+    name: getty@tty1.service
+    enabled: true
+    state: started
+    daemon_reload: true

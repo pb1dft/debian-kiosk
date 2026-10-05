@@ -1,0 +1,41 @@
+---
+kiosk_user: kiosk
+
+kiosk_urls:
+  - "http://10.1.2.15"
+  - "https://monitor.p2000alarm.nl/plaats/Delft"
+
+kiosk_display: ":0"
+kiosk_tab_interval: 30
+kiosk_chromium_restart_delay: 5
+
+kiosk_chromium_extra_args:
+  - "--no-first-run"
+  - "--no-default-browser-check"
+  - "--disable-session-crashed-bubble"
+  - "--disable-infobars"
+  - "--disable-features=Translate"
+  - "--disable-pinch"
+  - "--overscroll-history-navigation=0"
+  - "--disable-features=MediaRouter"
+
+kiosk_watchdog_interval: 30
+kiosk_watchdog_failures: 5
+kiosk_network_test_host: "10.1.2.1"
+
+# Persistent storage is OPTIONAL.
+#
+# If the device exists, it will be mounted and used.
+# If it doesn't exist, the kiosk continues without persistent storage.
+kiosk_persistent_data_enabled: true
+kiosk_persistent_device: "/dev/disk/by-label/KIOSKDATA"
+kiosk_persistent_fstype: "ext4"
+kiosk_persistent_mount: "/var/lib/kiosk"
+
+# Only enable this after the normal kiosk is working.
+kiosk_readonly_root: false
+
+kiosk_ssh_enabled: true
+kiosk_ssh_password_authentication: false
+
+kiosk_unattended_upgrades: true

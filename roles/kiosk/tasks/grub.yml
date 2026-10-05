@@ -1,0 +1,26 @@
+---
+- name: Configure quiet boot
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX_DEFAULT='
+    line: >-
+      GRUB_CMDLINE_LINUX_DEFAULT="quiet splash
+      loglevel=0
+      systemd.show_status=false
+      rd.systemd.show_status=false
+      udev.log_priority=0
+      vt.global_cursor_default=0"
+  register: grub_config
+
+- name: Disable GRUB menu timeout
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_TIMEOUT='
+    line: 'GRUB_TIMEOUT=0'
+  register: grub_timeout
+
+- name: Update GRUB
+  ansible.builtin.command:
+    cmd: update-grub
+  when:
+    - grub_config.changed or grub_timeout.changed

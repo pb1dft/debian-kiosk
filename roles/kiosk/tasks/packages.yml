@@ -1,0 +1,37 @@
+---
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Install kiosk packages
+  ansible.builtin.apt:
+    name:
+      - xorg
+      - xinit
+      - openbox
+      - chromium
+      - xdotool
+      - unclutter
+      - feh
+      - dbus-x11
+      - x11-xserver-utils
+      - openssh-server
+      - ca-certificates
+      - curl
+      - iputils-ping
+      - procps
+      - systemd
+      - overlayroot
+      - rsync
+      - plymouth
+      - plymouth-themes
+      - mc
+      - vim
+    state: present
+
+- name: Install unattended-upgrades if requested
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+  when: kiosk_unattended_upgrades | bool

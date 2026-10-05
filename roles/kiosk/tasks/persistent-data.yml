@@ -1,0 +1,74 @@
+---
+- name: Check for optional persistent storage
+  ansible.builtin.stat:
+    path: "{{ kiosk_persistent_device }}"
+  register: kiosk_persistent_device_stat
+  when: kiosk_persistent_data_enabled | bool
+
+- name: Set persistent storage availability
+  ansible.builtin.set_fact:
+    kiosk_persistent_data_available: >-
+      {{
+        kiosk_persistent_data_enabled | bool
+        and kiosk_persistent_device_stat.stat.exists | default(false)
+      }}
+
+- name: Report that persistent storage is unavailable
+  ansible.builtin.debug:
+    msg: >-
+      Persistent storage {{ kiosk_persistent_device }} was not found.
+      Continuing without persistent storage.
+  when:
+    - kiosk_persistent_data_enabled | bool
+    - not kiosk_persistent_data_available | bool
+
+- name: Create persistent mount point
+  ansible.builtin.file:
+    path: "{{ kiosk_persistent_mount }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: kiosk_persistent_data_available | bool
+
+- name: Mount persistent kiosk storage
+  ansible.posix.mount:
+    path: "{{ kiosk_persistent_mount }}"
+    src: "{{ kiosk_persistent_device }}"
+    fstype: "{{ kiosk_persistent_fstype }}"
+    opts: "defaults"
+    state: mounted
+  when: kiosk_persistent_data_available | bool
+
+- name: Create persistent Chromium directory
+  ansible.builtin.file:
+    path: "{{ kiosk_persistent_mount }}/chromium"
+    state: directory
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0700"
+  when: kiosk_persistent_data_available | bool
+
+- name: Check Chromium profile path
+  ansible.builtin.stat:
+    path: "/home/{{ kiosk_user }}/.config/chromium"
+  register: kiosk_chromium_profile
+  when: kiosk_persistent_data_available | bool
+
+- name: Remove existing Chromium profile directory before linking
+  ansible.builtin.file:
+    path: "/home/{{ kiosk_user }}/.config/chromium"
+    state: absent
+  when:
+    - kiosk_persistent_data_available | bool
+    - kiosk_chromium_profile.stat.exists
+    - not kiosk_chromium_profile.stat.islnk
+
+- name: Link Chromium profile to persistent storage
+  ansible.builtin.file:
+    src: "{{ kiosk_persistent_mount }}/chromium"
+    dest: "/home/{{ kiosk_user }}/.config/chromium"
+    state: link
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+  when: kiosk_persistent_data_available | bool

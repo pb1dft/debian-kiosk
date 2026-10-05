@@ -1,0 +1,7 @@
+---
+- name: Configure Debian 13 industrial Chromium kiosk
+  hosts: kiosk
+  become: true
+  gather_facts: true
+  roles:
+    - kiosk

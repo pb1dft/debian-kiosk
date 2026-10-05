@@ -1,0 +1,48 @@
+---
+- name: Kiosk health check
+  hosts: kiosk
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Check root filesystem
+      ansible.builtin.command: findmnt -n -o FSTYPE /
+      register: health_root
+      changed_when: false
+
+    - name: Check persistent storage
+      ansible.builtin.command: findmnt -n "{{ kiosk_persistent_mount }}"
+      register: health_data
+      changed_when: false
+      failed_when: false
+
+    - name: Check kiosk user
+      ansible.builtin.command: id "{{ kiosk_user }}"
+      changed_when: false
+
+    - name: Check Xorg
+      ansible.builtin.command: pgrep -x Xorg
+      register: health_xorg
+      changed_when: false
+      failed_when: false
+
+    - name: Check Chromium
+      ansible.builtin.command: pgrep -u "{{ kiosk_user }}" -x chromium
+      register: health_chromium
+      changed_when: false
+      failed_when: false
+
+    - name: Check watchdog
+      ansible.builtin.systemd:
+        name: kiosk-watchdog.service
+      register: health_watchdog
+      changed_when: false
+
+    - name: Show kiosk status
+      ansible.builtin.debug:
+        msg:
+          - "Root filesystem: {{ health_root.stdout | trim }}"
+          - "Persistent data mounted: {{ health_data.rc == 0 }}"
+          - "Xorg running: {{ health_xorg.rc == 0 }}"
+          - "Chromium running: {{ health_chromium.rc == 0 }}"
+          - "Watchdog: {{ health_watchdog.status.ActiveState | default('unknown') }}"

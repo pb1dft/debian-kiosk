@@ -1,0 +1,130 @@
+#!/bin/bash
+
+set -u
+
+export DISPLAY="{{ kiosk_display }}"
+export XAUTHORITY="/home/{{ kiosk_user }}/.Xauthority"
+
+SESSION_LOG="/home/{{ kiosk_user }}/kiosk-session.log"
+
+exec >>"$SESSION_LOG" 2>&1
+
+echo
+echo "=============================================="
+echo "[$(date -Is)] Kiosk X session starting"
+echo "=============================================="
+
+# Black background immediately.
+xsetroot -solid black
+
+# Disable screen blanking/power saving.
+xset -dpms
+xset s off
+xset s noblank
+
+# Hide mouse cursor.
+unclutter -idle 1 &
+
+# --------------------------------------------------
+# SPLASH
+# --------------------------------------------------
+
+start_splash() {
+    echo "[$(date -Is)] Starting graphical splash"
+
+    # Kill an old splash if one exists.
+    pkill -x feh 2>/dev/null || true
+
+    feh \
+        --fullscreen \
+        --hide-pointer \
+        --no-menus \
+        --image-bg black \
+        "/usr/share/plymouth/themes/tudelft-kiosk/logo.png" &
+
+    SPLASH_PID=$!
+
+    sleep 1
+}
+
+stop_splash() {
+    echo "[$(date -Is)] Chromium visible - removing splash"
+
+    if [ -n "${SPLASH_PID:-}" ]; then
+        kill "$SPLASH_PID" 2>/dev/null || true
+    fi
+
+    pkill -x feh 2>/dev/null || true
+}
+
+wait_for_chromium() {
+    echo "[$(date -Is)] Waiting for Chromium window"
+
+    local timeout=120
+    local elapsed=0
+
+    while [ "$elapsed" -lt "$timeout" ]; do
+
+        if xdotool search \
+            --onlyvisible \
+            --class "chromium" \
+            >/dev/null 2>&1; then
+
+            echo "[$(date -Is)] Chromium window detected"
+
+            # Give Chromium a moment to actually paint.
+            sleep 1
+
+            stop_splash
+            return 0
+        fi
+
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+
+    echo "[$(date -Is)] WARNING: Chromium window not detected"
+
+    return 1
+}
+
+# --------------------------------------------------
+# START
+# --------------------------------------------------
+
+start_splash
+
+# Start tab rotator.
+if [ -x "/home/{{ kiosk_user }}/bin/kiosk-rotator.sh" ]; then
+    /home/{{ kiosk_user }}/bin/kiosk-rotator.sh &
+fi
+
+# --------------------------------------------------
+# Chromium restart loop
+# --------------------------------------------------
+
+while true; do
+
+    # Make sure splash is present while Chromium starts.
+    start_splash
+
+    echo "[$(date -Is)] Starting Chromium"
+
+    /home/{{ kiosk_user }}/bin/kiosk-browser.sh &
+
+    CHROMIUM_PID=$!
+
+    # Wait until Chromium has actually created a visible window.
+    wait_for_chromium || true
+
+    # Wait for Chromium to exit.
+    wait "$CHROMIUM_PID" 2>/dev/null || true
+
+    echo "[$(date -Is)] Chromium exited"
+
+    # Immediately put splash back.
+    start_splash
+
+    sleep {{ kiosk_chromium_restart_delay }}
+
+done

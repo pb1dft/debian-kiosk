@@ -1,0 +1,36 @@
+---
+- name: Install packages
+  ansible.builtin.import_tasks: packages.yml
+
+- name: Configure quiet boot
+  ansible.builtin.import_tasks: grub.yml
+
+- name: Configure kiosk user
+  ansible.builtin.import_tasks: user.yml
+
+- name: Configure SSH
+  ansible.builtin.import_tasks: ssh.yml
+
+- name: Configure persistent data
+  ansible.builtin.import_tasks: persistent-data.yml
+
+- name: Configure boot splash
+  ansible.builtin.import_tasks: splash.yml
+
+- name: Configure X/Openbox kiosk session
+  ansible.builtin.import_tasks: kiosk.yml
+
+- name: Configure watchdog
+  ansible.builtin.import_tasks: watchdog.yml
+
+- name: Enable overlay filesystem
+  ansible.builtin.import_tasks: overlay.yml
+  tags:
+    - never
+    - overlay
+
+- name: Disable overlay filesystem
+  ansible.builtin.import_tasks: disable-overlay.yml
+  tags:
+    - never
+    - disable-overlay

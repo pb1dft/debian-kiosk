@@ -1,0 +1,13 @@
+[Unit]
+Description=Industrial kiosk watchdog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/kiosk-watchdog
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

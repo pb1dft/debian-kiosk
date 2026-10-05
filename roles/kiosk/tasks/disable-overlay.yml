@@ -1,0 +1,44 @@
+---
+- name: Check current root filesystem
+  ansible.builtin.command:
+    cmd: findmnt -n -o FSTYPE /
+  register: kiosk_root_fstype
+  changed_when: false
+  failed_when: false
+
+- name: Remove overlay configuration
+  ansible.builtin.file:
+    path: /etc/overlayroot.conf
+    state: absent
+  register: kiosk_disable_overlay
+  when:
+    - kiosk_root_fstype.stdout | trim != "overlay"
+
+- name: Disable overlay from lower filesystem
+  ansible.builtin.command:
+    cmd: overlayroot-chroot /bin/sh -c 'rm -f /etc/overlayroot.conf && update-initramfs -u'
+  register: kiosk_disable_overlay_chroot
+  when:
+    - kiosk_root_fstype.stdout | trim == "overlay"
+
+- name: Rebuild initramfs after disabling overlay
+  ansible.builtin.command:
+    cmd: update-initramfs -u
+  when:
+    - kiosk_root_fstype.stdout | trim != "overlay"
+    - kiosk_disable_overlay.changed
+
+- name: Reboot without overlay filesystem
+  ansible.builtin.reboot:
+    msg: "Rebooting kiosk with overlay filesystem disabled"
+    reboot_timeout: 600
+    connect_timeout: 10
+    pre_reboot_delay: 2
+    post_reboot_delay: 10
+  when:
+    - >
+      (kiosk_root_fstype.stdout | trim == "overlay" and
+       kiosk_disable_overlay_chroot.changed)
+      or
+      (kiosk_root_fstype.stdout | trim != "overlay" and
+       kiosk_disable_overlay.changed)

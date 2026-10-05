@@ -1,0 +1,24 @@
+#!/bin/bash
+set -u
+FAILURES=0
+while true; do
+  OK=true
+
+  pgrep -u "{{ kiosk_user }}" -x chromium >/dev/null || OK=false
+  pgrep -x Xorg >/dev/null || OK=false
+  ping -c 1 -W 3 "{{ kiosk_network_test_host }}" >/dev/null 2>&1 || OK=false
+
+  if [ "$OK" = true ]; then
+    FAILURES=0
+  else
+    FAILURES=$((FAILURES + 1))
+    logger -t kiosk-watchdog "Health check failed ($FAILURES/{{ kiosk_watchdog_failures }})"
+  fi
+
+  if [ "$FAILURES" -ge "{{ kiosk_watchdog_failures }}" ]; then
+    logger -t kiosk-watchdog "Too many failures. Rebooting kiosk."
+    systemctl reboot
+  fi
+
+  sleep "{{ kiosk_watchdog_interval }}"
+done

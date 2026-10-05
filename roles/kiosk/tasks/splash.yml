@@ -1,0 +1,69 @@
+---
+- name: Create Plymouth theme directory
+  ansible.builtin.file:
+    path: /usr/share/plymouth/themes/tudelft-kiosk
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install TU Delft Plymouth logo
+  ansible.builtin.copy:
+    src: logo_white.png
+    dest: /usr/share/plymouth/themes/tudelft-kiosk/logo.png
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install Plymouth theme definition
+  ansible.builtin.copy:
+    dest: /usr/share/plymouth/themes/tudelft-kiosk/tudelft-kiosk.plymouth
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Plymouth Theme]
+      Name=TU Delft Kiosk
+      Description=TU Delft industrial kiosk boot splash
+      ModuleName=script
+
+      [script]
+      ImageDir=/usr/share/plymouth/themes/tudelft-kiosk
+      ScriptFile=/usr/share/plymouth/themes/tudelft-kiosk/tudelft-kiosk.script
+
+- name: Install Plymouth theme script
+  ansible.builtin.copy:
+    dest: /usr/share/plymouth/themes/tudelft-kiosk/tudelft-kiosk.script
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      background = Image("logo.png");
+
+      screen_width = Window.GetWidth();
+      screen_height = Window.GetHeight();
+
+      image_width = background.GetWidth();
+      image_height = background.GetHeight();
+
+      scale = screen_width / image_width;
+
+      if ((image_height * scale) > screen_height) {
+          scale = screen_height / image_height;
+      }
+
+      scaled_width = image_width * scale;
+      scaled_height = image_height * scale;
+
+      logo = background.Scale(scaled_width, scaled_height);
+
+      logo_sprite = Sprite(logo);
+
+      logo_sprite.SetX((screen_width - scaled_width) / 2);
+      logo_sprite.SetY((screen_height - scaled_height) / 2);
+
+- name: Set TU Delft Plymouth theme
+  ansible.builtin.command:
+    cmd: plymouth-set-default-theme -R tudelft-kiosk
+  register: plymouth_theme
+  changed_when: true

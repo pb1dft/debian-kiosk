@@ -1,0 +1,67 @@
+---
+- name: Check whether persistent storage is available
+  ansible.builtin.stat:
+    path: "{{ kiosk_persistent_device }}"
+  register: kiosk_overlay_persistent_device
+
+- name: Refuse overlay without persistent storage
+  ansible.builtin.fail:
+    msg: >-
+      Read-only overlay requires persistent storage.
+      {{ kiosk_persistent_device }} was not found.
+      Either install/configure the persistent disk or don't enable
+      the overlay tag.
+  when:
+    - not kiosk_overlay_persistent_device.stat.exists
+
+- name: Check whether persistent mount is active
+  ansible.builtin.command:
+    cmd: findmnt -n "{{ kiosk_persistent_mount }}"
+  register: kiosk_overlay_mount
+  changed_when: false
+  failed_when: false
+
+- name: Refuse overlay when persistent storage is not mounted
+  ansible.builtin.fail:
+    msg: >-
+      Persistent device exists but {{ kiosk_persistent_mount }} is not mounted.
+      Refusing to enable read-only overlay.
+  when:
+    - kiosk_overlay_mount.rc != 0
+
+- name: Check current root filesystem
+  ansible.builtin.command:
+    cmd: findmnt -n -o FSTYPE /
+  register: kiosk_root_fstype
+  changed_when: false
+  failed_when: false
+
+- name: Configure overlayroot
+  ansible.builtin.copy:
+    dest: /etc/overlayroot.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Managed by Ansible.
+      overlayroot="tmpfs:recurse=0"
+  register: kiosk_overlay_configured
+  when: kiosk_root_fstype.stdout | trim != "overlay"
+
+- name: Rebuild initramfs after enabling overlay
+  ansible.builtin.command:
+    cmd: update-initramfs -u
+  when:
+    - kiosk_root_fstype.stdout | trim != "overlay"
+    - kiosk_overlay_configured.changed
+
+- name: Reboot into overlay filesystem
+  ansible.builtin.reboot:
+    msg: "Rebooting kiosk into overlay filesystem"
+    reboot_timeout: 600
+    connect_timeout: 10
+    pre_reboot_delay: 2
+    post_reboot_delay: 10
+  when:
+    - kiosk_root_fstype.stdout | trim != "overlay"
+    - kiosk_overlay_configured.changed

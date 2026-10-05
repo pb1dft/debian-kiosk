@@ -1,0 +1,24 @@
+---
+- name: Create kiosk user
+  ansible.builtin.user:
+    name: "{{ kiosk_user }}"
+    shell: /bin/bash
+    create_home: true
+    groups:
+      - audio
+      - video
+      - input
+      - render
+    append: true
+
+- name: Create kiosk directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ kiosk_user }}"
+    group: "{{ kiosk_user }}"
+    mode: "0755"
+  loop:
+    - "/home/{{ kiosk_user }}/bin"
+    - "/home/{{ kiosk_user }}/.config"
+    - "/home/{{ kiosk_user }}/.config/openbox"

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -u
+
+export DISPLAY="{{ kiosk_display }}"
+export XAUTHORITY="/home/{{ kiosk_user }}/.Xauthority"
+
+PROFILE="/home/{{ kiosk_user }}/.config/chromium"
+LOG="/home/{{ kiosk_user }}/kiosk-browser.log"
+
+mkdir -p "$PROFILE"
+
+echo "[$(date -Is)] Starting Chromium" >> "$LOG"
+
+exec /usr/bin/chromium \
+{% for arg in kiosk_chromium_extra_args %}
+  {{ arg }} \
+{% endfor %}
+  --kiosk \
+  --start-fullscreen \
+  --user-data-dir="$PROFILE" \
+{% for url in kiosk_urls %}
+  "{{ url }}"{% if not loop.last %} \{% endif %}
+{% endfor %}

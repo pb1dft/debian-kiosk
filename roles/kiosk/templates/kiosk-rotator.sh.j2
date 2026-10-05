@@ -1,0 +1,18 @@
+#!/bin/bash
+set -u
+
+export DISPLAY="{{ kiosk_display }}"
+export XAUTHORITY="/home/{{ kiosk_user }}/.Xauthority"
+LOG="/home/{{ kiosk_user }}/kiosk-rotator.log"
+
+echo "[$(date -Is)] Rotator started" >> "$LOG"
+
+sleep 10
+
+while true; do
+  sleep "{{ kiosk_tab_interval }}"
+
+  if pgrep -u "{{ kiosk_user }}" -x chromium >/dev/null; then
+    xdotool key --clearmodifiers ctrl+Tab >>"$LOG" 2>&1 || true
+  fi
+done

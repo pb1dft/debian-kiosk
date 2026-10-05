@@ -1,0 +1,15 @@
+#!/bin/bash
+
+export DISPLAY="{{ kiosk_display }}"
+export XAUTHORITY="/home/{{ kiosk_user }}/.Xauthority"
+
+# Completely black X root window.
+xsetroot -solid black
+
+# Disable power management.
+xset -dpms
+xset s off
+xset s noblank
+
+# Start Openbox.
+exec openbox-session
